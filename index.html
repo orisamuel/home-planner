@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<title>הבית שלנו</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- gate: house code + who am I -->
+<section class="gate hidden" id="gate">
+  <div class="gate-card">
+    <h1>הבית שלנו</h1>
+    <p id="gateHint">מקלידים את קוד הבית פעם אחת, והטלפון זוכר.</p>
+    <div class="field"><label for="code">קוד הבית</label><input class="input" id="code" type="password" autocomplete="current-password" inputmode="text"></div>
+    <div class="field hidden" id="code2Wrap"><label for="code2">שוב, לאימות</label><input class="input" id="code2" type="password" autocomplete="new-password"></div>
+    <div class="field"><label>מי את/ה?</label>
+      <div class="who"><button type="button" data-who="ori">אורי</button><button type="button" data-who="rani">רני</button></div>
+    </div>
+    <button class="btn" id="enter" disabled>כניסה</button>
+    <div class="err" id="gateErr"></div>
+  </div>
+</section>
+
+<!-- main -->
+<main class="wrap hidden" id="main">
+  <header>
+    <div><h1>הבית שלנו</h1><div class="sync" id="sync">מתעדכן…</div></div>
+    <button class="me" id="me" aria-label="החלפת משתמש"></button>
+  </header>
+
+  <section class="sum" aria-label="תקציב">
+    <div class="row"><span class="muted">שולם</span><span class="muted" id="sumPlan"></span></div>
+    <div class="row"><span class="big" id="sumPaid">₪0</span><span class="muted" id="sumCount"></span></div>
+    <div class="bar"><i id="barPaid" style="background:var(--ori)"></i><i id="barPlan" style="background:#f0b27e"></i></div>
+  </section>
+
+  <nav class="chips" id="statusChips" aria-label="סינון לפי מצב"></nav>
+  <div id="list"></div>
+</main>
+
+<button class="fab hidden" id="fab" aria-label="הוספת פריט">+</button>
+
+<!-- add / edit sheet -->
+<div class="scrim hidden" id="scrim"></div>
+<form class="sheet hidden" id="sheet" autocomplete="off">
+  <h3><span id="sheetTitle">פריט חדש</span><button type="button" class="x" id="close" aria-label="סגירה">✕</button></h3>
+  <div class="field"><label for="fName">מה זה</label><input class="input" id="fName" required placeholder="ספה, מנורה, מקרר…"></div>
+  <div class="two">
+    <div class="field"><label for="fRoom">חדר</label><select class="input" id="fRoom"></select></div>
+    <div class="field"><label for="fCat">קטגוריה</label><select class="input" id="fCat"></select></div>
+  </div>
+  <div class="field"><label>מצב</label>
+    <div class="seg" id="fStatus"><button type="button" data-s="need">צריך</button><button type="button" data-s="chosen">בחרנו</button><button type="button" data-s="bought">קנינו</button></div>
+  </div>
+  <div class="two">
+    <div class="field"><label for="fPlanned">מחיר משוער ₪</label><input class="input" id="fPlanned" inputmode="numeric"></div>
+    <div class="field" id="paidWrap"><label for="fPaid">שולם בפועל ₪</label><input class="input" id="fPaid" inputmode="numeric"></div>
+  </div>
+  <div class="field"><label>תמונה</label>
+    <div class="photo-pick"><div class="ph" id="fPhotoPrev">📷</div>
+      <input type="file" id="fPhoto" accept="image/*" class="hidden">
+      <button type="button" class="btn ghost" id="pickPhoto" style="width:auto;padding:0 16px">צילום או גלריה</button></div>
+  </div>
+  <div class="two">
+    <div class="field"><label for="fStore">חנות</label><input class="input" id="fStore"></div>
+    <div class="field"><label for="fLink">קישור</label><input class="input" id="fLink" inputmode="url" dir="ltr"></div>
+  </div>
+  <div class="field"><label for="fNote">הערה</label><input class="input" id="fNote"></div>
+  <div class="actions">
+    <button class="btn" id="save" type="submit">שמירה</button>
+    <button class="del hidden" id="del" type="button">מחיקת הפריט</button>
+  </div>
+</form>
+
+<div class="toast hidden" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
