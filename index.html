@@ -2,13 +2,17 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f6f1ea">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>הבית שלנו</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
 <script src="config.js"></script>
 </head>
 <body>
@@ -18,7 +22,7 @@
   <div class="gate-card">
     <h1>הבית שלנו</h1>
     <p id="gateHint">מקלידים את קוד הבית פעם אחת, והטלפון זוכר.</p>
-    <div class="field"><label for="code">קוד הבית</label><input class="input" id="code" type="password" autocomplete="current-password" inputmode="text"></div>
+    <div class="field"><label for="code">קוד הבית</label><input class="input" id="code" type="password" autocomplete="current-password"></div>
     <div class="field hidden" id="code2Wrap"><label for="code2">שוב, לאימות</label><input class="input" id="code2" type="password" autocomplete="new-password"></div>
     <div class="field"><label>מי את/ה?</label>
       <div class="who"><button type="button" data-who="ori">אורי</button><button type="button" data-who="rani">רני</button></div>
@@ -28,29 +32,39 @@
   </div>
 </section>
 
-<!-- main -->
-<main class="wrap hidden" id="main">
-  <header>
-    <div><h1>הבית שלנו</h1><div class="sync" id="sync">מתעדכן…</div></div>
-    <button class="me" id="me" aria-label="החלפת משתמש"></button>
+<!-- the house -->
+<div class="app hidden" id="app">
+  <canvas id="c3d" aria-label="הבית בתלת ממד"></canvas>
+  <div class="labels" id="labels"></div>
+  <div class="loading" id="loading"><div class="spin"></div><span>בונים את הבית…</span></div>
+
+  <header class="top" id="top">
+    <div class="ttl"><h1>הבית שלנו</h1><div class="sync" id="sync">מתעדכן…</div></div>
+    <div class="top-l">
+      <button class="pill" id="pill" aria-label="תקציב"><span id="pillPaid">₪0</span><span class="of">מתוך</span><span id="pillTotal">150K</span></button>
+      <button class="me" id="me" aria-label="החלפת משתמש"></button>
+    </div>
   </header>
 
-  <section class="sum" aria-label="תקציב">
-    <div class="row"><span class="muted">שולם</span><span class="muted" id="sumPlan"></span></div>
-    <div class="row"><span class="big" id="sumPaid">₪0</span><span class="muted" id="sumCount"></span></div>
-    <div class="bar"><i id="barPaid" style="background:var(--ori)"></i><i id="barPlan" style="background:#f0b27e"></i></div>
+  <div class="tools" id="tools">
+    <button class="round hidden" id="homeBtn" aria-label="כל הבית" title="כל הבית">⌂</button>
+    <button class="round" id="sunBtn" aria-label="שעה ביום" title="שעה ביום">☀</button>
+  </div>
+  <div class="pop hidden" id="sunPop">
+    <div class="row"><span class="time" id="tlabel">10:00</span><input type="range" id="t" min="6" max="22" step="0.25" value="10" aria-label="שעה ביום"></div>
+    <div class="seg2" id="season"><button data-d="355" class="on">דצמבר</button><button data-d="172">יוני</button></div>
+  </div>
+
+  <section class="sheet" id="sheet" aria-live="polite">
+    <div class="grab" id="grab"><span></span></div>
+    <div class="sh-body" id="shBody"></div>
   </section>
+</div>
 
-  <nav class="chips" id="statusChips" aria-label="סינון לפי מצב"></nav>
-  <div id="list"></div>
-</main>
-
-<button class="fab hidden" id="fab" aria-label="הוספת פריט">+</button>
-
-<!-- add / edit sheet -->
+<!-- add / edit -->
 <div class="scrim hidden" id="scrim"></div>
-<form class="sheet hidden" id="sheet" autocomplete="off">
-  <h3><span id="sheetTitle">פריט חדש</span><button type="button" class="x" id="close" aria-label="סגירה">✕</button></h3>
+<form class="editor hidden" id="editor" autocomplete="off">
+  <h3><span id="edTitle">פריט חדש</span><button type="button" class="x" id="close" aria-label="סגירה">✕</button></h3>
   <div class="field"><label for="fName">מה זה</label><input class="input" id="fName" required placeholder="ספה, מנורה, מקרר…"></div>
   <div class="two">
     <div class="field"><label for="fRoom">חדר</label><select class="input" id="fRoom"></select></div>
@@ -63,10 +77,14 @@
     <div class="field"><label for="fPlanned">מחיר משוער ₪</label><input class="input" id="fPlanned" inputmode="numeric"></div>
     <div class="field" id="paidWrap"><label for="fPaid">שולם בפועל ₪</label><input class="input" id="fPaid" inputmode="numeric"></div>
   </div>
+  <div class="two">
+    <div class="field"><label for="fQty">כמות</label><input class="input" id="fQty" inputmode="numeric"></div>
+    <label class="check"><input type="checkbox" id="fBefore"> חייב להיות בבית ביום הכניסה</label>
+  </div>
   <div class="field"><label>תמונה</label>
     <div class="photo-pick"><div class="ph" id="fPhotoPrev">📷</div>
       <input type="file" id="fPhoto" accept="image/*" class="hidden">
-      <button type="button" class="btn ghost" id="pickPhoto" style="width:auto;padding:0 16px">צילום או גלריה</button></div>
+      <button type="button" class="btn ghost" id="pickPhoto">צילום או גלריה</button></div>
   </div>
   <div class="two">
     <div class="field"><label for="fStore">חנות</label><input class="input" id="fStore"></div>
