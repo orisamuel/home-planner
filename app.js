@@ -152,7 +152,7 @@ function useHouse(H, fresh = false) {
 async function build3D(H) {
   try {
     if (S.h3) return;                                 // a newer model arrives on the next visit
-    const { createHouse } = await import('./house3d.js?v=20261029d');
+    const { createHouse } = await import('./house3d.js?v=20261029e');
     S.h3 = createHouse({ canvas: $('c3d'), labelsEl: $('labels'), house: H, onRoomTap: openRoom });
     layout(); S.h3.setProgress(progress());
     if (S.view === 'room' && S.room) S.h3.enterRoom(S.room); else S.h3.goHome();

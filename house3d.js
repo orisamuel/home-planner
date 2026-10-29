@@ -226,10 +226,10 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
       if (o.closed) box(along ? x + fw : x + T / 2 - 2, along ? y + T / 2 - 2 : y + fw, along ? lw : 4, along ? 4 : lw, 0, lh, mat);
       else {
         const side = (s) => roomAt(along ? x + w / 2 : x + w / 2 + s * (T / 2 + 30), along ? y + d / 2 + s * (T / 2 + 30) : y + d / 2);
-        const a = side(-1), b = side(1), s = (b && b.id !== 'entry') ? 1 : (a && a.id !== 'entry') ? -1 : 1;
+        const a = side(-1), b = side(1), s = o.swing || ((b && b.id !== 'entry') ? 1 : (a && a.id !== 'entry') ? -1 : 1);   // swing/hinge from the plan when the rule guesses wrong
         const R = s > 0 ? b : a, q = R ? R.rects.reduce((m, r) => r[2] * r[3] > m[2] * m[3] ? r : m) : null;
         const st = along ? x : y, en = along ? x + w : y + d, lo = q ? (along ? q[0] : q[1]) : st, hi = q ? (along ? q[0] + q[2] : q[1] + q[3]) : en;
-        const hp = (hi - en) < (st - lo) ? en - fw - 4 : st + fw, hEnd = hp !== st + fw;
+        const hp = o.hinge ? (o.hinge === 'end' ? en - fw - 4 : st + fw) : (hi - en) < (st - lo) ? en - fw - 4 : st + fw, hEnd = hp !== st + fw;
         if (along) { const by = s < 0 ? y - lw : y + d; box(hp, by, 4, lw, 0, lh, mat); box(hEnd ? hp - 2 : hp + 4, s < 0 ? y - lw + 4 : y + d + lw - 10, 2, 6, 1, .03, M.chrome); }
         else { const bx = s < 0 ? x - lw : x + w; box(bx, hp, lw, 4, 0, lh, mat); box(s < 0 ? x - lw + 4 : x + w + lw - 10, hEnd ? hp - 2 : hp + 4, 6, 2, 1, .03, M.chrome); }
       }
