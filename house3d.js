@@ -501,7 +501,7 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
     } else if (current) {
       // back to the room's overview
     }
-    placeLamps();
+    placeLamps(); setLayer(layer);
     return true;
   }
 
@@ -515,6 +515,36 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
       const k = p.total ? p.bought / p.total : 0;
       t.forEach(m => { m.visible = k > 0; m.material = k >= 1 ? M.done : M.part; });
     }
+  }
+
+  // ---------- layers: plan sheets laid on the floor, and the light points ----------
+  const overlays = {};
+  const ringMat = new THREE.MeshBasicMaterial({ color: '#f2a33a', transparent: true, opacity: .9, depthWrite: false, toneMapped: false });
+  const rings = new THREE.Group(); rings.visible = false; group.add(rings);
+  for (const b of bulbs) {
+    const r = new THREE.Mesh(new THREE.RingGeometry(.16, .24, 32), ringMat);
+    r.rotation.x = -Math.PI / 2; r.position.set(b.pos.x, .035, b.pos.z); rings.add(r);
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(.08, 24), ringMat);
+    dot.rotation.x = -Math.PI / 2; dot.position.set(b.pos.x, .036, b.pos.z); rings.add(dot);
+    const ln = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, b.pos.y, 6), ringMat);      // floor to bulb
+    ln.position.set(b.pos.x, b.pos.y / 2, b.pos.z); rings.add(ln);
+  }
+  let layer = 'none';
+  function addOverlay(name, png, meta) {
+    if (overlays[name]) return;
+    const [x0, y0, x1, y1] = meta.box;
+    const tex = new THREE.TextureLoader().load('data:image/png;base64,' + png);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const m = new THREE.Mesh(new THREE.PlaneGeometry((x1 - x0) / 100, (y1 - y0) / 100),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false }));   // drawn over cabinets and wall bases: sockets and taps sit there
+    m.rotation.x = -Math.PI / 2; m.position.set(W((x0 + x1) / 2), .04, Z((y0 + y1) / 2)); m.renderOrder = 50; m.visible = false;
+    group.add(m); overlays[name] = m;
+  }
+  function setLayer(name, png, meta) {
+    layer = name;
+    if (png) addOverlay(name, png, meta);
+    for (const k in overlays) overlays[k].visible = k === name && !eye;        // sheets lie on the floor: not at eye level
+    rings.visible = name === 'lights';
   }
 
   // ---------- size, loop ----------
@@ -562,7 +592,7 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
   placeSun();
 
   return {
-    enterRoom, goHome, setEye, isEye: () => eye, resize, setInsets, setProgress,
+    enterRoom, goHome, setEye, isEye: () => eye, resize, setInsets, setProgress, setLayer,
     setTime(h) { hour = h; placeSun(); }, setSeason(d) { day = d; placeSun(); },
     get hour() { return hour; },
     debug() { return { pos: camera.position.toArray().map(v => +v.toFixed(2)), target: controls.target.toArray().map(v => +v.toFixed(2)), fov: camera.fov, view: camera.view && { ...camera.view }, VP: { ...VP } }; },
