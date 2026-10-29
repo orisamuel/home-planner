@@ -163,7 +163,7 @@ function totals(list) {
   }
   return t;
 }
-const budgetTotal = () => Number(S.settings.total_budget) || 150000;
+const budgetTotal = () => Number(S.settings.total_budget) || 0;            // the frame lives on the server only
 function progress() {
   const map = {};
   for (const i of view()) { const p = (map[i.room || 'general'] ||= { total: 0, bought: 0 }); p.total++; if (i.status === 'bought') p.bought++; }
@@ -171,7 +171,7 @@ function progress() {
 }
 function barHTML(t, total) {
   const max = Math.max(total, t.paid + t.chosen + t.need) || 1, pc = (v) => (v / max * 100).toFixed(2) + '%';
-  return `<div class="bar ${t.paid + t.chosen + t.need > total ? 'over' : ''}"><i class="paid" style="width:${pc(t.paid)}"></i><i class="chosen" style="width:${pc(t.chosen)}"></i><i class="need" style="width:${pc(t.need)}"></i></div>`;
+  return `<div class="bar ${total && t.paid + t.chosen + t.need > total ? 'over' : ''}"><i class="paid" style="width:${pc(t.paid)}"></i><i class="chosen" style="width:${pc(t.chosen)}"></i><i class="need" style="width:${pc(t.need)}"></i></div>`;
 }
 
 // ---------- sheet ----------
@@ -227,7 +227,7 @@ function renderSheet(force) {
       <div class="sh-head"><div><h2>כל הבית</h2><div class="muted">${T.n} דברים ברשימה · ${T.bought} כבר בבית</div></div>
         <div class="hbtns"><button class="chipbtn primary" data-act="add">+ להוסיף</button></div></div>
       <button class="bud" data-go="budget">
-        <div class="row"><span class="muted">שולם</span><span class="muted">מסגרת ${shekel(total)}</span></div>
+        <div class="row"><span class="muted">שולם</span><span class="muted">${total ? 'מסגרת ' + shekel(total) : 'עוד אין מסגרת'}</span></div>
         <div class="row"><span class="big">${shekel(T.paid)}</span><span class="muted">${T.chosen + T.need ? 'עוד ' + shekel(T.chosen + T.need) + ' מתוכנן' : 'עוד אין מחירים'}</span></div>
         ${barHTML(T, total)}
       </button>
@@ -271,13 +271,13 @@ function renderSheet(force) {
     html = `
       <div class="sh-head"><div><h2>תקציב</h2><div class="muted">כל הסכומים כולל מע"מ</div></div><div class="hbtns"><button class="chipbtn" data-act="home">⌂ לבית</button></div></div>
       <label class="muted" for="totalIn">מסגרת לכל הבית</label>
-      <div class="total-in"><input class="input" id="totalIn" inputmode="numeric" value="${total}"><span>₪</span></div>
+      <div class="total-in"><input class="input" id="totalIn" inputmode="numeric" value="${total || ''}" placeholder="סכום בשקלים"><span>₪</span></div>
       ${barHTML(T, total)}
       <div class="kv">
         <div><span class="muted"><i style="background:var(--c-paid)"></i>שולם</span><b>${shekel(T.paid)}</b></div>
         <div><span class="muted"><i style="background:var(--c-chosen)"></i>בחרנו, עוד לא שולם</span><b>${shekel(T.chosen)}</b></div>
         <div><span class="muted"><i style="background:var(--c-need)"></i>צריך (הערכה)</span><b>${shekel(T.need)}</b></div>
-        <div><span class="muted"><i style="background:var(--soft)"></i>${free >= 0 ? 'פנוי' : 'חריגה'}</span><b style="${free < 0 ? 'color:var(--danger)' : ''}">${shekel(Math.abs(free))}</b></div>
+        <div><span class="muted"><i style="background:var(--soft)"></i>${!total ? 'פנוי' : free >= 0 ? 'פנוי' : 'חריגה'}</span><b style="${total && free < 0 ? 'color:var(--danger)' : ''}">${total ? shekel(Math.abs(free)) : 'אין מסגרת'}</b></div>
       </div>
       ${T.unpriced ? `<div class="muted" style="margin-bottom:6px">${T.unpriced} פריטים עוד בלי מחיר, אז "מתוכנן" נמוך מהאמת.</div>` : ''}
       <div class="sec">לפי חדר</div>${by((i) => i.room || 'general', (k) => (S.rooms.find((r) => r.id === k) || {}).name || k) || '<div class="muted">עוד אין סכומים. מוסיפים מחיר לפריט, והוא יופיע כאן.</div>'}
@@ -294,7 +294,8 @@ const byStatus = (a, b) => RANK[a.status] - RANK[b.status] || (b.before_move ? 1
 function render() {
   const T = totals(view()), total = budgetTotal();
   $('pillPaid').textContent = '₪' + kShort(T.paid);
-  $('pillTotal').textContent = kShort(total);
+  $('pillTotal').textContent = total ? kShort(total) : '';
+  document.querySelector('.pill .of').classList.toggle('hidden', !total);
   $('me').textContent = (WHO[S.who] || '?')[0];
   $('me').style.background = `var(--${S.who || 'ori'})`;
   if (S.h3) S.h3.setProgress(progress());
