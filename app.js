@@ -11,6 +11,16 @@ const FLOOR = { porcelain80: 'פורצלן 80/80', porcelain60: 'פורצלן 60
 const WHO = { ori: 'אורי', rani: 'רני' };
 
 const $ = (id) => document.getElementById(id);
+// "לפני 5 דק'": how long ago something changed
+function ago(ms) {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 90) return 'עכשיו';
+  if (s < 3600) return `לפני ${Math.round(s / 60)} דק'`;
+  if (s < 7200) return 'לפני שעה';
+  if (s < 86400) return `לפני ${Math.round(s / 3600)} שעות`;
+  if (s < 172800) return 'אתמול';
+  return `לפני ${Math.round(s / 86400)} ימים`;
+}
 // a pasted share often carries text around the link ("look at this https://…"): keep the link only, and only http(s)
 function cleanLink(s) {
   const m = String(s || '').match(/https?:\/\/[^\s<>"']+|www\.[^\s<>"']+/i);
@@ -152,9 +162,10 @@ function useHouse(H, fresh = false) {
 async function build3D(H) {
   try {
     if (S.h3) return;                                 // a newer model arrives on the next visit
-    const { createHouse } = await import('./house3d.js?v=20261029e');
+    const { createHouse } = await import('./house3d.js?v=20261030a');
     S.h3 = createHouse({ canvas: $('c3d'), labelsEl: $('labels'), house: H, onRoomTap: openRoom });
     layout(); S.h3.setProgress(progress());
+    const now = new Date(); setHour(Math.min(16, Math.max(8, now.getHours() + Math.round(now.getMinutes() / 15) * .25)));   // today's light, never after dark
     if (S.view === 'room' && S.room) S.h3.enterRoom(S.room); else S.h3.goHome();
     setTimeout(() => $('loading').classList.add('done'), 250);
   } catch (e) {
@@ -192,15 +203,23 @@ function barHTML(t, total) {
 
 // ---------- sheet ----------
 const SIZES = () => ({ peek: S.view === 'room' ? 262 : 312, half: Math.round(innerHeight * .5), full: Math.round(innerHeight * .88) });
-function setSheet(view, size, room) {
-  S.view = view; if (room !== undefined) S.room = room;
-  S.size = size || S.size;
-  $('sheet').style.setProperty('--sheet-h', SIZES()[S.size] + 'px');
-  $('homeBtn').classList.toggle('hidden', view === 'home');
-  $('labels').classList.toggle('off', S.size === 'full');            // no room labels squeezed above a full sheet
-  renderSheet(true);
+function setSize(size) {
+  S.size = size;
+  $('sheet').style.setProperty('--sheet-h', SIZES()[size] + 'px');
+  $('labels').classList.toggle('off', size === 'full');              // no room labels squeezed above a full sheet
   layout();
 }
+function setSheet(view, size, room) {
+  S.view = view; if (room !== undefined) S.room = room;
+  $('homeBtn').classList.toggle('hidden', view === 'home');
+  setSize(size || S.size);
+  renderSheet(true);
+}
+// typing on a phone: the keyboard covers the lower half, so the sheet rises first. Size only, no redraw
+// (a redraw would replace the field and close the keyboard).
+$('shBody').addEventListener('focusin', (e) => {
+  if (e.target.matches('input') && S.size !== 'full' && matchMedia('(pointer: coarse)').matches) setSize('full');
+});
 function layout() {
   if (!S.h3) return;
   const desk = innerWidth >= 700;
@@ -229,8 +248,7 @@ function itemHTML(i, showRoom) {
       <div class="seg3">${['need', 'chosen', 'bought'].map((st) => `<button type="button" data-set="${st}" data-s="${st}" class="${i.status === st ? 'on' : ''}">${STATUS[st]}</button>`).join('')}</div>
       <div class="pricerow">
         <label for="priceIn">${i.status === 'bought' ? 'כמה שילמנו' : 'מחיר משוער'}</label>
-        <input class="input" id="priceIn" inputmode="numeric" value="${esc(i.status === 'bought' ? (i.paid ?? '') : (i.planned ?? ''))}" placeholder="${i.status === 'bought' && i.planned ? 'בערך ' + esc(i.planned) : '₪'}">
-        <button type="button" class="chipbtn" data-act="price">שמירה</button>
+        <input class="input" id="priceIn" inputmode="numeric" enterkeyhint="done" value="${esc(i.status === 'bought' ? (i.paid ?? '') : (i.planned ?? ''))}" placeholder="${i.status === 'bought' && i.planned ? 'בערך ' + esc(i.planned) : '₪'}">
       </div>
       <div class="linkrow">${i.link
         ? `<a class="chipbtn link" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 ${esc(host(i.link))} ↗</a><button type="button" class="chipbtn" data-act="unlink" aria-label="הסרת הקישור">✕</button>`
@@ -267,6 +285,7 @@ function renderSheet(force) {
         ${barHTML(T, total)}
       </button>
       <div class="tiles">${['need', 'chosen', 'bought'].map((s) => `<button class="tile ${s}" data-list="${s}"><b>${counts[s]}</b><span>${STATUS[s]}</span></button>`).join('')}</div>
+      ${recentHTML(all)}
       ${before ? `<button class="line-btn" data-list="before"><span><b>לפני הכניסה</b> <span class="muted">· מה חייב להיות בבית ביום המעבר</span></span><span class="chipbtn">${before}</span></button>` : ''}
       <div class="sec"><span>חדרים</span><span class="muted">נגיעה בחדר בבית או כאן</span></div>
       <div class="strip">${S.rooms.map((r) => { const p = prog[r.id]; return `<button class="chipbtn" data-room="${esc(r.id)}">${esc(r.name)}${p ? `<span class="n">${p.bought}/${p.total}</span>` : ''}</button>`; }).join('')}</div>
@@ -325,10 +344,21 @@ function renderSheet(force) {
   const lIn = $('linkIn'); if (lIn) {
     lIn.onpaste = (e) => { const t = e.clipboardData?.getData('text'); if (t) { e.preventDefault(); saveLink(t); } };
     lIn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); saveLink(lIn.value); } };
-    lIn.onchange = () => saveLink(lIn.value);
+    lIn.onchange = () => saveLink(lIn.value, true);
   }
-  const pIn = $('priceIn'); if (pIn) pIn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); savePrice(); } };
+  const pIn = $('priceIn'); if (pIn) { pIn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); pIn.blur(); } }; pIn.onchange = () => savePrice(pIn.value); }
   const tIn = $('totalIn'); if (tIn) tIn.onchange = () => { const v = Number(tIn.value.replace(/[^\d]/g, '')); if (v > 0) { S.settings.total_budget = v; LS.set('settings', S.settings); api('setSetting', { key: 'total_budget', value: v }).catch(() => toast('לא נשמר')); render(); } };
+}
+// the last changes, so each of us sees what the other did. The starter list landed in one go, right
+// after the first item ever: anything from those first minutes is not news.
+function recentHTML(all) {
+  const t = (i) => Number(i.updated_at) || 0, t0 = Math.min(...all.map((i) => t(i) || Infinity));
+  const rec = all.filter((i) => t(i) - t0 > 180e3 && Date.now() - t(i) < 14 * 86400e3).sort((a, b) => t(b) - t(a)).slice(0, 3);
+  if (!rec.length) return '';
+  const name = (id) => (S.rooms.find((r) => r.id === id) || {}).name || '';
+  return `<div class="sec"><span>מה חדש</span></div>` + rec.map((i) => { const who = WHO[i.updated_by] || i.updated_by || i.added_by || ''; return `<button class="line-btn rec" data-open="${esc(i.id)}">
+    <span><b>${esc(i.name)}</b><span class="muted"> · ${esc(name(i.room || 'general'))} · ${STATUS[i.status] || ''}</span></span>
+    <span class="muted small">${esc(who)}${who ? ' · ' : ''}${ago(t(i))}</span></button>`; }).join('');
 }
 // stable order: as added (server row order; new ones at the end). Items never jump when their status changes.
 function byOrder(a, b) {
@@ -349,6 +379,7 @@ function render() {
   syncLabel();
 }
 function setSync(t) { $('sync').textContent = t; }
+$('sync').onclick = () => { setSync('מעדכן…'); sync(); };
 function syncLabel() {
   if (!S.lastSync) return;
   const s = Math.round((Date.now() - S.lastSync) / 1000);
@@ -361,13 +392,13 @@ $('shBody').onclick = (e) => {
   const card = e.target.closest('.item'), item = card && view().find((x) => x.id === card.dataset.id);
   if (t.tagName === 'A') return;
   if (t.dataset.set && item) return setItemStatus(item, t.dataset.set);
-  if (t.dataset.act === 'price' && item) return savePrice();
   if (t.dataset.act === 'photo' && item) { S.photoFor = item.id; return $('quickPhoto').click(); }
   if (t.dataset.act === 'edit' && item) return openEditor(item);
   if (t.dataset.act === 'del' && item) return removeItem(item);
   if (t.dataset.act === 'unlink' && item) { const before = strip(item); change(item.id, { ...before, link: '' }, 'update'); return toast('הקישור הוסר', 'ביטול', () => change(item.id, before, 'update')); }
   if (t.classList.contains('item')) {                  // tap a card: open it in place (tap again to close)
     if (e.target.closest('.acts')) return;
+    if (item && S.open === item.id && e.target.closest('.ph') && (item.photo || item._preview)) return showPhoto(item);
     S.open = S.open === item.id ? null : item.id; return renderSheet(true);
   }
   if (t.dataset.act === 'add') return openEditor(null, S.view === 'room' ? S.room : null);
@@ -376,6 +407,11 @@ $('shBody').onclick = (e) => {
     const on = !S.h3.isEye();
     if (on) { S.h3.setEye(true); setSheet('room', 'peek'); } else { S.h3.enterRoom(S.room); setSheet('room', 'half'); }
     return;
+  }
+  if (t.dataset.open) {
+    const i = view().find((x) => x.id === t.dataset.open); if (!i) return;
+    openRoom(i.room || 'general'); S.open = i.id; renderSheet(true);
+    document.querySelector('.item.open')?.scrollIntoView({ block: 'center' }); return;
   }
   if (t.dataset.go === 'budget') return setSheet('budget', 'full');
   if (t.dataset.list) { S.filter = t.dataset.list; S.q = ''; return setSheet('list', 'full'); }
@@ -390,19 +426,25 @@ function setItemStatus(i, st) {
   if (navigator.vibrate) navigator.vibrate(12);
   toast(`${i.name}: ${STATUS[st]}`, 'ביטול', () => change(i.id, before, 'update'));
 }
-function savePrice() {
-  const i = view().find((x) => x.id === S.open), v = num($('priceIn').value); if (!i) return;
-  change(i.id, { ...strip(i), [i.status === 'bought' ? 'paid' : 'planned']: v }, 'update');
-  S.open = null; renderSheet(true); toast('נשמר');
+function savePrice(val) {                              // on blur or Enter; the card stays open
+  const i = view().find((x) => x.id === S.open), v = num(val); if (!i) return;
+  const key = i.status === 'bought' ? 'paid' : 'planned';
+  if ((i[key] ?? '') === v) return;
+  change(i.id, { ...strip(i), [key]: v }, 'update', {}, true); toast('נשמר');
 }
-function saveLink(text) {
+function saveLink(text, quiet) {                       // quiet: saved on blur, so the redraw waits for the server and never swallows the tap that blurred
   const i = view().find((x) => x.id === S.open); if (!i) return;
   const link = cleanLink(text);
   if (!link) return String(text || '').trim() && toast('זה לא נראה כמו קישור');
   if (link === i.link) return;
-  document.activeElement?.blur?.();                    // so the card redraws with the link
-  change(i.id, { ...strip(i), link }, 'update'); toast('הקישור נשמר');
+  if (!quiet) document.activeElement?.blur?.();        // so the card redraws with the link
+  change(i.id, { ...strip(i), link }, 'update', {}, quiet); toast('הקישור נשמר');
 }
+function showPhoto(i) {
+  $('lightbox').querySelector('img').src = i._preview || `https://lh3.googleusercontent.com/d/${encodeURIComponent(i.photo)}=w1600`;
+  $('lightbox').classList.remove('hidden');
+}
+$('lightbox').onclick = () => $('lightbox').classList.add('hidden');
 function removeItem(i) {                               // a short grace period instead of a confirm dialog
   S.hidden.add(i.id); S.open = null; render();
   const t = setTimeout(() => { S.hidden.delete(i.id); change(i.id, {}, 'delete'); }, 5000);
@@ -425,7 +467,10 @@ const GUESS = [[/מנור|תאור|נבר|ספוט|מאוורר|גוף/, 'lighti
   [/תמונ|עציץ|אגרטל|קישוט|שעון/, 'decor'], [/גינ|דשא|צמח|גריל|מרפסת|פרגול|השקי/, 'garden'], [/נגר|חשמלאי|צבע|התקנ|שיפוץ|פרקט|דלת/, 'works'],
   [/ראוטר|רשת|מצלמ|אזעק|wifi/i, 'tech']];
 const guessCategory = (n) => (GUESS.find(([re]) => re.test(n)) || [null, ''])[1];
-function change(id, item, op, extra = {}) { S.pending[id] = { op, item, ...extra }; render(); send(id); }
+function change(id, item, op, extra = {}, quiet = false) {
+  S.pending[id] = { op, item: op === 'delete' ? item : { ...item, updated_at: Date.now(), updated_by: WHO[S.who] }, ...extra };   // shown as news right away; the server stamps its own
+  if (!quiet) render(); send(id);
+}
 $('homeBtn').onclick = goHome;
 $('pill').onclick = () => setSheet('budget', 'full');
 $('me').onclick = () => { if (confirm('להחליף משתמש בטלפון הזה?')) { LS.del('who'); S.who = ''; logout(''); } };
@@ -451,7 +496,8 @@ $('layers').onclick = async (e) => {
   }
   S.h3.setLayer(name, L.png, L.meta);
 };
-$('t').oninput = () => { const h = +$('t').value; $('tlabel').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`; S.h3 && S.h3.setTime(h); };
+function setHour(h) { $('t').value = h; $('tlabel').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`; S.h3 && S.h3.setTime(h); }
+$('t').oninput = () => setHour(+$('t').value);
 document.querySelectorAll('#season button').forEach((b) => b.onclick = () => {
   document.querySelectorAll('#season button').forEach((x) => x.classList.toggle('on', x === b)); S.h3 && S.h3.setSeason(+b.dataset.d);
 });

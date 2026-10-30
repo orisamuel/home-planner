@@ -135,7 +135,7 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
   const std = (color, roughness = .6, metalness = 0, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
   const floorMat = {};
   for (const k of ['porcelain80', 'porcelain60', 'tile30', 'parquet', 'outdoor', 'grass'])
-    floorMat[k] = std(k === 'grass' ? '#d8dccb' : '#ffffff', k === 'parquet' ? .55 : k === 'grass' ? 1 : .5, 0, { map: TEX[k], envMapIntensity: k === 'grass' ? 1 : .35 });   // less sky in the floors
+    floorMat[k] = std(k === 'grass' ? '#d8dccb' : '#ffffff', k === 'parquet' ? .55 : k === 'grass' ? 1 : .5, 0, { map: TEX[k], envMapIntensity: k === 'grass' ? 1 : .22 });   // less sky in the floors
   const M = {
     wall: std('#f3f0eb', .9, 0, { normalMap: TEX.plasterN, normalScale: new THREE.Vector2(.08, .08) }), cap: std('#4a433d', .8),
     stone: std('#ffffff', .85, 0, { map: TEX.stone }),
@@ -432,8 +432,8 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
   const reorder = () => { labelOrder = labelEls.slice().sort((a, b) => (b.id === current) - (a.id === current) || b.prio - a.prio); };
 
   // ---------- camera moves ----------
-  let fly = null;
-  const flyTo = (pos, target, ms = 900) => { fly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: target, s: performance.now(), ms }; };
+  let fly = null, first = true;
+  const flyTo = (pos, target, ms = 900) => { fly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: target, s: performance.now(), ms: first ? 1700 : ms }; first = false; };
   const VP = { w: 1, h: 1, top: 0, bottom: 0 };
   function homeFor() {                     // fit the house (and patio) into the area the sheet leaves free
     const vh = Math.max(200, VP.h - VP.top - VP.bottom), fov = camera.fov * Math.PI / 180;
@@ -588,7 +588,7 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
 
   resize(canvas.clientWidth || innerWidth, canvas.clientHeight || innerHeight);
   camera.fov = mobile ? 50 : 40; applyView();
-  camera.position.copy(homeFor()); controls.target.copy(HOME.target);
+  camera.position.copy(homeFor()).multiplyScalar(2.1).add(new THREE.Vector3(0, 6, 0)); controls.target.copy(HOME.target);   // arrive from afar: the first move flies in
   placeSun();
 
   return {
@@ -596,6 +596,7 @@ export function createHouse({ canvas, labelsEl, house: H, onRoomTap }) {
     setTime(h) { hour = h; placeSun(); }, setSeason(d) { day = d; placeSun(); },
     get hour() { return hour; },
     debug() { return { pos: camera.position.toArray().map(v => +v.toFixed(2)), target: controls.target.toArray().map(v => +v.toFixed(2)), fov: camera.fov, view: camera.view && { ...camera.view }, VP: { ...VP } }; },
+    look(from, to) { fly = null; camera.position.set(W(from[0]), from[2] / 100, Z(from[1])); controls.target.set(W(to[0]), to[2] / 100, Z(to[1])); },   // testing: [x, y, height] in cm
     roomMeta(id) { const i = roomInfo[id]; return i && { name: i.r.name, area: i.area, w: i.r.rects.length === 1 ? i.big[2] : null, d: i.r.rects.length === 1 ? i.big[3] : null, floor: i.r.floor, out: i.out }; },
     settle() { if (fly) { camera.position.copy(fly.p1); controls.target.copy(fly.t1); fly = null; } controls.enableDamping = false; frame(performance.now()); frame(performance.now()); controls.enableDamping = true; },
   };

@@ -44,6 +44,7 @@ button { cursor: pointer; }
 .labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .labels.hide, .labels.off { display: none; }
 .lab { position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: 5px; border: 0; background: rgba(255, 253, 249, .92); border-radius: 99px; padding: 4px 9px 4px 10px; font: 700 12px Heebo, sans-serif; color: var(--ink); box-shadow: 0 1px 5px rgba(40, 30, 20, .16); white-space: nowrap; transition: opacity .2s; will-change: transform; }
+.lab::after { content: ''; position: absolute; inset: -8px; border-radius: 99px; }     /* a finger-sized target */
 .lab.out { background: rgba(236, 245, 228, .92); }
 .lab.sel { background: var(--ink); color: #fff; }
 .lab .dot { width: 7px; height: 7px; border-radius: 50%; background: #c9bfb2; }
@@ -107,6 +108,14 @@ button { cursor: pointer; }
 .tile.chosen { background: var(--chosen); color: var(--chosen-ink); }
 .tile.bought { background: var(--bought); color: var(--bought-ink); }
 .line-btn { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: var(--bg); border-radius: 14px; padding: 12px; margin-bottom: 12px; text-align: start; }
+.line-btn.rec { padding: 10px 12px; margin-bottom: 8px; gap: 10px; }
+.line-btn.rec > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.line-btn.rec .small { font-size: 12px; white-space: nowrap; flex: none; }
+.sync { cursor: pointer; }
+.lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(24, 18, 12, .94); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; }
+.item.pending .st { animation: pop .35s ease-out; }
+@keyframes pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
 .sec { font-size: 15px; font-weight: 700; margin: 14px 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
 .strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .strip .chipbtn { display: inline-flex; gap: 6px; align-items: center; }
@@ -129,7 +138,7 @@ h3.room { font-size: 15px; font-weight: 700; margin: 14px 0 8px; display: flex; 
 .seg3 button.on[data-s="need"] { background: var(--need); color: var(--need-ink); font-weight: 800; }
 .seg3 button.on[data-s="chosen"] { background: var(--chosen); color: var(--chosen-ink); font-weight: 800; }
 .seg3 button.on[data-s="bought"] { background: var(--bought); color: var(--bought-ink); font-weight: 800; }
-.pricerow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.pricerow { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
 .pricerow label { font-size: 13px; color: var(--muted); }
 .pricerow .input { min-height: 40px; padding: 8px 10px; }
 .row2 { display: flex; gap: 8px; flex-wrap: wrap; }
